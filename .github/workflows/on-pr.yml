@@ -27,10 +27,10 @@ jobs:
         run: cargo test
         env:
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB }}
 
       - name: Self Test
         uses: ./
         with:
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.TOKEN_GITHUB }}

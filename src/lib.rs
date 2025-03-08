@@ -37,16 +37,16 @@ pub struct PrGenerator {
     template_path: String,
     exclude_patterns: Vec<String>,
     claude_api_key: String,
-    github_token: String,
+    TOKEN_GITHUB: String,
 }
 
 impl PrGenerator {
-    pub fn new(template_path: String, exclude_patterns: Vec<String>, claude_api_key: String, github_token: String) -> Self {
+    pub fn new(template_path: String, exclude_patterns: Vec<String>, claude_api_key: String, TOKEN_GITHUB: String) -> Self {
         Self {
             template_path,
             exclude_patterns,
             claude_api_key,
-            github_token,
+            TOKEN_GITHUB,
         }
     }
 
@@ -190,13 +190,13 @@ pub async fn run() -> Result<(), Box<dyn Error>> {
 
     // Get API keys from environment
     let claude_api_key = std::env::var("CLAUDE_API_KEY")?;
-    let github_token = std::env::var("GITHUB_TOKEN")?;
+    let TOKEN_GITHUB = std::env::var("TOKEN_GITHUB")?;
 
     let generator = PrGenerator::new(
         template_path.to_string(),
         exclude_patterns,
         claude_api_key,
-        github_token,
+        TOKEN_GITHUB,
     );
 
     let pr_description = generator.generate_pr_description("main").await?;

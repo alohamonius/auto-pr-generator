@@ -32,7 +32,7 @@ jobs:
         uses: yourusername/auto-pr-generator@v1
         with:
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.TOKEN_GITHUB }}
 ```
 
 ## Inputs

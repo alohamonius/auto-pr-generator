@@ -25,9 +25,9 @@ if [ -f "pr_prompt.md" ]; then
     if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
         PR_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
         
-        if [ -n "$GITHUB_TOKEN" ]; then
+        if [ -n "$TOKEN_GITHUB" ]; then
             curl -X PATCH \
-                -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Authorization: token $TOKEN_GITHUB" \
                 -H "Accept: application/vnd.github.v3+json" \
                 "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
                 -d "{\"body\": $(jq -R -s '.' < pr_prompt.md)}"
