@@ -15,8 +15,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate PR Description
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and use action
         uses: ./
         with:
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           github-token: ${{ secrets.TOKEN_GITHUB }}
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          TOKEN_GITHUB: ${{ secrets.TOKEN_GITHUB }}
