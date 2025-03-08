@@ -1,58 +1,75 @@
-Project Path: {{ absolute_code_path }}
+{{ absolute_code_path }}
 
-I want you to generate a high-quality well-crafted Github pull request description for this project.
-I will provide you with the source tree, git diff, git log, and pull request template.
+# Pull Request Description Generation Guide
 
-Source Tree:
+## Core Data Sources
+
+### Source Tree Structure
 ```
 {{ source_tree }}
 ```
+- Provides comprehensive project architecture overview
+- Highlights recent structural changes
+- Enables contextual understanding of project layout
 
-{{#if git_diff_branch}}
-Git diff:
+### Code Changes Analysis
+#### Git Diff Details
 ```
-{{git_diff_branch}}
+{{ git_diff_branch }}
 ```
-{{/if}}
+- Captures precise code modification details
+- Identifies specific line-level changes
+- Reveals implementation approach and code evolution
 
-
-{{#if git_log_branch}}
-Git log:
+#### Git Log Insights
 ```
-{{git_log_branch}}
+{{ git_log_branch }}
 ```
-{{/if}}
+- Chronicles commit history
+- Tracks development progression
+- Provides narrative of project development
 
-
-The Pull Request description should include the following template and adhere best practice:
+#### Changed Files Inventory
 ```
-Title: provide with concise and informative title.
+{{ git_changed_files }}
+```
+- Lists modified files
+- Enables targeted change tracking
+- Supports comprehensive review process
 
-# What is this?
-- Explain the motivation why this is needed and the expected outcome of implementing this.
-- Write it in a humanized manner.
+## Pull Request Description Template
+```markdown
+Title: [Concise, Descriptive Change Summary]
+
+# Motivation
+- Context for changes
+- Strategic significance
+- Expected outcomes
 
 # Changes
-- Provide list of key changes with good structure.
-- Mention the class name, function name, and file name.
-- Explain the code changes.
-For example:
-# Changes
-## Added Features:
-    1. **New Functions in `file_name.`**:
-        - `function_name.`: code description.
-## Code Changes:
-    1. **In `file_name.`**:
-## Documentation Updates:
-    1. **In `file_name.`**:
-
-# Demo
-- N/A
+## Technical Modifications
+- Specific file changes
+- Function-level updates
+- Implementation details
 
 # Context
-- N/A
+- Related background information
+- Design considerations
+
+# Next Steps
+- Potential improvements
+- Future development directions
 ```
 
-Please, analyze the git diff and git log to understand the changes. Do not output git log and git diff to the content.
-Use your analysis of the code to generate accurate and helpful content, but also explain things clearly for users who may not be familiar with the implementation details.
-Write the content in Markdown format and follow the provided pull request template.
+## Analysis Guidelines
+1. Utilize source tree for structural context
+2. Extract key changes from git diff
+3. Understand development flow from git log
+4. Focus on modified files
+5. Provide clear, actionable insights
+
+## Recommended Approach
+- Deeply analyze provided data sources
+- Generate comprehensive, meaningful description
+- Highlight technical and collaborative aspects
+```

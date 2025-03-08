@@ -58,6 +58,20 @@ impl PrGenerator {
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
     }
 
+    fn get_changed_files(&self, base_branch: &str, current_branch: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        let output = Command::new("git")
+            .args(&["diff", "--name-only", base_branch, current_branch])
+            .output()?;
+        
+        let files = String::from_utf8(output.stdout)?
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(String::from)
+            .collect();
+        
+        Ok(files)
+    }
+
     fn get_git_diff(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
         // This gets the diff between the base branch and your current branch
         let output = Command::new("git")
@@ -101,40 +115,84 @@ impl PrGenerator {
         Ok(response.content[0].text.clone())
     }
 
-    pub async fn generate_pr_description(&self, base_branch: &str) -> Result<String, Box<dyn Error>> {
-        let current_branch = self.get_current_branch()?;
-        
-        // Get source tree
-        let output = Command::new("tree")
-            .args(&["-L", "2", "--noreport", "--charset", "ascii"])
+    fn get_git_stats(&self, base_branch: &str, current_branch: &str) -> Result<serde_json::Value, Box<dyn Error>> {
+        // Get first commit date
+        let first_commit = Command::new("git")
+            .args(&["log", "--reverse", "--format=%at", &format!("{}..{}", base_branch, current_branch)])
             .output()?;
-        let source_tree = String::from_utf8(output.stdout)?.trim().to_string();
+        let first_commit_output = String::from_utf8(first_commit.stdout)?;
+        let first_date = first_commit_output.lines().next().unwrap_or("0");
         
-        // Get git data
-        let git_diff = self.get_git_diff(base_branch, &current_branch)?;
-        let git_log = self.get_git_log(base_branch, &current_branch)?;
+        // Get last commit date
+        let last_commit = Command::new("git")
+            .args(&["log", "-1", "--format=%at", current_branch])
+            .output()?;
+        let last_commit_output = String::from_utf8(last_commit.stdout)?;
+        let last_date = last_commit_output.lines().next().unwrap_or("0");
         
-        // Use handlebars to fill template
-        let mut handlebars = Handlebars::new();
-        handlebars.register_template_file("pr_template", &self.template_path)?;
+        // Get commit count
+        let commit_count = Command::new("git")
+            .args(&["rev-list", "--count", &format!("{}..{}", base_branch, current_branch)])
+            .output()?;
+        let count_output = String::from_utf8(commit_count.stdout)?;
+        let count = count_output.trim().to_string();
         
-        let data = json!({
-            "absolute_code_path": std::env::current_dir()?.display().to_string(),
-            "source_tree": source_tree,
-            "git_diff_branch": git_diff,
-            "git_log_branch": git_log,
-        });
+        // Get contributors with commit counts
+        let contributors = Command::new("git")
+            .args(&["shortlog", "-sn", "--no-merges", &format!("{}..{}", base_branch, current_branch)])
+            .output()?;
+        let contribs_output = String::from_utf8(contributors.stdout)?;
+        let contribs = contribs_output.trim().to_string();
         
-        let template_output = handlebars.render("pr_template", &data)?;
-        
-        // Get response from Claude
-        let pr_description = self.get_claude_response(&template_output).await?;
-        
-        fs::write("template_output.md", &template_output)?;
-        fs::write("pr_prompt.md", &pr_description)?;
-        
-        Ok(pr_description)
+        let hours = (last_date.parse::<i64>()? - first_date.parse::<i64>()?) / 3600;
+        let files_changed = self.get_changed_files(base_branch, current_branch)?.len();
+
+        Ok(json!({
+            "duration": hours,
+            "commit_count": count,
+            "contributors": contribs,
+            "code_velocity": files_changed as f64 / if hours > 0 { hours as f64 } else { 1.0 }
+        }))
     }
+
+    pub async fn generate_pr_description(&self, base_branch: &str) -> Result<String, Box<dyn Error>> {
+    let current_branch = self.get_current_branch()?;
+    
+    // Get source tree
+    let output = Command::new("tree")
+        .args(&["-L", "2", "--noreport", "--charset", "ascii"])
+        .output()?;
+    let source_tree = String::from_utf8(output.stdout)?.trim().to_string();
+    
+    // Get git data
+    let git_diff = self.get_git_diff(base_branch, &current_branch)?;
+    let git_log = self.get_git_log(base_branch, &current_branch)?;
+    let files = self.get_changed_files(base_branch, &current_branch)?;
+    let git_stats = self.get_git_stats(base_branch, &current_branch)?;
+    
+    // Use handlebars to fill template
+    let mut handlebars = Handlebars::new();
+    handlebars.register_template_file("pr_template", &self.template_path)?;
+    
+    let data = json!({
+        "absolute_code_path": std::env::current_dir()?.display().to_string(),
+        "source_tree": source_tree,
+        "git_diff_branch": git_diff,
+        "git_log_branch": git_log,
+        "git_changed_files": files,
+        "git_stats": git_stats
+    });
+    
+    let template_output = handlebars.render("pr_template", &data)?;
+    
+    // Get response from Claude
+    let pr_description = self.get_claude_response(&template_output).await?;
+    
+    fs::write("template_output.md", &template_output)?;
+    fs::write("pr_prompt.md", &pr_description)?;
+    
+    Ok(pr_description)
+}
 }
 
 pub async fn run() -> Result<(), Box<dyn Error>> {
