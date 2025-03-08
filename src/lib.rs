@@ -59,33 +59,18 @@ impl PrGenerator {
     }
 
     fn get_git_diff(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
-        // First get the changed file list
-        let diff_arg = format!("{}...{}", base_branch, current_branch);
-        let files_output = Command::new("git")
-            .args(&["diff", "--name-only", &diff_arg])
-            .output()?;
-        
-        let changed_files = String::from_utf8(files_output.stdout)?.trim().to_string();
-        
-        // Then get the actual diff content for these files
-        let mut full_diff = String::new();
-        for file in changed_files.split('\n') {
-            if file.is_empty() { continue; }
-            
-            let file_diff = Command::new("git")
-                .args(&["diff", &diff_arg, "--", file])
-                .output()?;
-            
-            full_diff.push_str(&String::from_utf8(file_diff.stdout)?);
-        }
-        
-        Ok(full_diff)
-    }
-
-    fn get_git_log(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
-        let log_arg = format!("{}...{}", base_branch, current_branch);
+        // This gets the diff between the base branch and your current branch
         let output = Command::new("git")
-            .args(&["log", &log_arg])
+            .args(&["diff", base_branch, current_branch])
+            .output()?;
+            
+        Ok(String::from_utf8(output.stdout)?.trim().to_string())
+    }
+    
+    fn get_git_log(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
+        // This gets all commits from where your branch diverged
+        let output = Command::new("git")
+            .args(&["log", &format!("{}..{}", base_branch, current_branch)])
             .output()?;
             
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
