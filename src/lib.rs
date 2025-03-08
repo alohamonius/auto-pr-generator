@@ -91,31 +91,6 @@ impl PrGenerator {
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
     }
 
-    async fn generate_code2prompt_output(&self, changed_files: &str) -> Result<String, Box<dyn Error>> {
-        // Convert changed files to include patterns
-        let include_patterns: Vec<String> = changed_files
-            .split('\n')
-            .filter(|f| !f.is_empty())
-            .map(|f| format!("**/{}", f))
-            .collect();
-
-        // Run code2prompt command
-        let include_arg = include_patterns.join(",");
-        let output = Command::new("code2prompt")
-            .args(&[".", "--include", &include_arg, "-t", &self.template_path])
-            .output()?;
-
-        println!("Changed files: {}", changed_files);
-        println!("Include patterns: {}", include_arg);
-
-        println!("Code2prompt output: {}", String::from_utf8(output.stdout.clone())?);
-        if !output.stderr.is_empty() {
-            println!("Code2prompt stderr: {}", String::from_utf8(output.stderr)?);
-        }
-
-        Ok(String::from_utf8(output.stdout)?.trim().to_string())
-    }
-
     async fn get_claude_response(&self, prompt: &str) -> Result<String, Box<dyn Error>> {
         let client = Client::new();
         
