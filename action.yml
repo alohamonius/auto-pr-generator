@@ -1,0 +1,44 @@
+name: "Auto PR Description Generator"
+description: "Automatically generates high-quality pull request descriptions using git history"
+branding:
+  icon: "git-pull-request"
+  color: "blue"
+
+inputs:
+  claude-api-key:
+    description: "Claude API key for generating descriptions"
+    required: true
+  github-token:
+    description: "GitHub token for PR access"
+    required: true
+  base-branch:
+    description: "Base branch to compare against (default: main)"
+    required: false
+    default: "main"
+  template-path:
+    description: "Path to custom handlebars template file"
+    required: false
+    default: "pr_template.hbs"
+  exclude-patterns:
+    description: "Comma-separated list of patterns to exclude from diff"
+    required: false
+    default: "**/dist/**,**/node_modules/**,**/scripts/**,**/package-lock.json,**/lib/**"
+  claude-model:
+    description: "Claude model to use for generating PR descriptions"
+    required: false
+    default: "claude-3-opus-20240229"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.base-branch }}
+    - ${{ inputs.template-path }}
+    - ${{ inputs.exclude-patterns }}
+    - ${{ inputs.claude-api-key }}
+    - ${{ inputs.github-token }}
+    - ${{ inputs.claude-model }}
+
+outputs:
+  description:
+    description: "Generated PR description"
