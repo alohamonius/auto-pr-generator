@@ -1,0 +1,36 @@
+name: Test Auto PR Generator
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Build
+        run: cargo build
+
+      - name: Run Tests
+        run: cargo test
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Self Test
+        uses: ./
+        with:
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

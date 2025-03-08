@@ -59,14 +59,27 @@ impl PrGenerator {
     }
 
     fn get_git_diff(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
+        // First get the changed file list
         let diff_arg = format!("{}...{}", base_branch, current_branch);
-        let mut args = vec!["diff", &diff_arg, "--name-only"];
-        
-        let output = Command::new("git")
-            .args(&args)
+        let files_output = Command::new("git")
+            .args(&["diff", "--name-only", &diff_arg])
             .output()?;
+        
+        let changed_files = String::from_utf8(files_output.stdout)?.trim().to_string();
+        
+        // Then get the actual diff content for these files
+        let mut full_diff = String::new();
+        for file in changed_files.split('\n') {
+            if file.is_empty() { continue; }
             
-        Ok(String::from_utf8(output.stdout)?.trim().to_string())
+            let file_diff = Command::new("git")
+                .args(&["diff", &diff_arg, "--", file])
+                .output()?;
+            
+            full_diff.push_str(&String::from_utf8(file_diff.stdout)?);
+        }
+        
+        Ok(full_diff)
     }
 
     fn get_git_log(&self, base_branch: &str, current_branch: &str) -> Result<String, Box<dyn Error>> {
@@ -91,6 +104,14 @@ impl PrGenerator {
         let output = Command::new("code2prompt")
             .args(&[".", "--include", &include_arg, "-t", &self.template_path])
             .output()?;
+
+        println!("Changed files: {}", changed_files);
+        println!("Include patterns: {}", include_arg);
+
+        println!("Code2prompt output: {}", String::from_utf8(output.stdout.clone())?);
+        if !output.stderr.is_empty() {
+            println!("Code2prompt stderr: {}", String::from_utf8(output.stderr)?);
+        }
 
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
     }
@@ -123,32 +144,33 @@ impl PrGenerator {
     pub async fn generate_pr_description(&self, base_branch: &str) -> Result<String, Box<dyn Error>> {
         let current_branch = self.get_current_branch()?;
         
-        // Get changed files
-        let changed_files = self.get_git_diff(base_branch, &current_branch)?;
+        // Get source tree
+        let output = Command::new("tree")
+            .args(&["-L", "2", "--noreport", "--charset", "ascii"])
+            .output()?;
+        let source_tree = String::from_utf8(output.stdout)?.trim().to_string();
         
-        // Generate code2prompt output
-        let code_analysis = self.generate_code2prompt_output(&changed_files).await?;
-        
-        // Get git information
+        // Get git data
+        let git_diff = self.get_git_diff(base_branch, &current_branch)?;
         let git_log = self.get_git_log(base_branch, &current_branch)?;
-
-        // Prepare prompt for Claude
-        let prompt = format!(
-            "Please analyze this pull request and generate a comprehensive description.\n\n\
-            Code Analysis:\n{}\n\n\
-            Git Log:\n{}\n\n\
-            Please format the response as a well-structured markdown document with:\n\
-            1. A clear title\n\
-            2. Summary of changes\n\
-            3. Technical details\n\
-            4. Impact and considerations",
-            code_analysis, git_log
-        );
-
-        // Get response from Claude
-        let pr_description = self.get_claude_response(&prompt).await?;
         
-        // Save to file
+        // Use handlebars to fill template
+        let mut handlebars = Handlebars::new();
+        handlebars.register_template_file("pr_template", &self.template_path)?;
+        
+        let data = json!({
+            "absolute_code_path": std::env::current_dir()?.display().to_string(),
+            "source_tree": source_tree,
+            "git_diff_branch": git_diff,
+            "git_log_branch": git_log,
+        });
+        
+        let template_output = handlebars.render("pr_template", &data)?;
+        
+        // Get response from Claude
+        let pr_description = self.get_claude_response(&template_output).await?;
+        
+        fs::write("template_output.md", &template_output)?;
         fs::write("pr_prompt.md", &pr_description)?;
         
         Ok(pr_description)
